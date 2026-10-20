@@ -258,38 +258,75 @@ class Account implements Transactable, InterestBearing {
 }
 
 public class MiniBank {
+
     public static void main(String[] args) {
-        Account account = new Account("Aditi", 0);
+        Account a = new Account("Aditi", 1000);
+        Account b = new Account("Test User", 1000);
 
-        int numberOfThreads = 10;
-        int times = 1000;
-        long amount = 1;
+        // 1. Thread pool
+        System.out.println("--- Thread Pool ---");
 
-        Thread[] threads = new Thread[numberOfThreads];
+        TransactionProcessor processor = new TransactionProcessor();
+        processor.submit(new TransactionTask(a, "deposit", 100));
+        processor.submit(new TransactionTask(a, "withdraw", 50));
+        processor.stop();
 
-        for (int i = 0; i < numberOfThreads; i++) {
-            AccountWorker worker =
-                    new AccountWorker(account, times, amount);
+        System.out.println("Balance: " + a.getBalance());
 
-            threads[i] = new Thread(worker, "Thread-" + (i + 1));
-            threads[i].start();
-        }
+        // 2. Producer and consumer
+        System.out.println("\n--- Producer Consumer ---");
 
-        for (int i = 0; i < numberOfThreads; i++) {
+        TransactionBuffer buffer = new TransactionBuffer();
+
+        Thread producer = new Thread(() -> {
             try {
-                threads[i].join();
+                buffer.put(new TransactionTask(a, "deposit", 10));
             } catch (InterruptedException e) {
-                System.out.println("Thread interrupted");
                 Thread.currentThread().interrupt();
-                return;
             }
+        });
+
+        Thread consumer = new Thread(() -> {
+            try {
+                Runnable task = buffer.take();
+                task.run();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        producer.start();
+        consumer.start();
+
+        try {
+            producer.join();
+            consumer.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
         }
 
-        long expectedBalance = numberOfThreads * times * amount;
+        System.out.println("Balance: " + a.getBalance());
 
-        System.out.println("\n----Final Result----");
-        System.out.println("Expected balance: " + expectedBalance);
-        System.out.println("Actual balance: " + account.getBalance());
+        // 3. Deadlock prevention
+        System.out.println("\n--- Safe Transfers ---");
+
+        Thread t1 = new Thread(() -> TransferDemo.transfer(a, b, 100));
+        Thread t2 = new Thread(() -> TransferDemo.transfer(b, a, 50));
+
+        t1.start();
+        t2.start();
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
+        System.out.println("Account A: " + a.getBalance());
+        System.out.println("Account B: " + b.getBalance());
     }
 
 }
