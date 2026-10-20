@@ -1,6 +1,5 @@
 import Model.annotation.Id;
 import Model.annotation.Positive;
-import java.util.Scanner;
 
 record BankInfo(String name, String branch) {}
 
@@ -193,17 +192,16 @@ class Account implements Transactable, InterestBearing {
     }
 
     @Override
-    public void deposit(long amount) {
+    public synchronized void deposit(long amount) {
         balance += amount;
     }
 
     @Override
-    public boolean withdraw(long amount) {
+    public synchronized boolean withdraw(long amount) {
         if (balance >= amount) {
             balance -= amount;
             return true;
         }
-
         return false;
     }
 
@@ -261,103 +259,37 @@ class Account implements Transactable, InterestBearing {
 
 public class MiniBank {
     public static void main(String[] args) {
-    Scanner input = new Scanner(System.in);
+        Account account = new Account("Aditi", 0);
 
-    BankInfo bank = new BankInfo("MiniBank", "Vadodara");
+        int numberOfThreads = 10;
+        int times = 1000;
+        long amount = 1;
 
-    System.out.println("==================================");
-    System.out.println("Welcome to " + bank.name());
-    System.out.println("Branch : " + bank.branch());
-    System.out.println("==================================");
+        Thread[] threads = new Thread[numberOfThreads];
 
-    // 1. Anonymous class
-    Account account = new Account("Aditi", 10000);
+        for (int i = 0; i < numberOfThreads; i++) {
+            AccountWorker worker =
+                    new AccountWorker(account, times, amount);
 
-    WithdrawRule rule1 = new WithdrawRule() {
-        @Override
-        public boolean allow(Account account, long amount) {
-            return account.getBalance() >= amount;
+            threads[i] = new Thread(worker, "Thread-" + (i + 1));
+            threads[i].start();
         }
-    };
 
-    System.out.println("\n--- Anonymous Class ---");
-    System.out.println("Withdraw 5000: " + rule1.allow(account, 5000));
-
-    WithdrawRule rule2 =
-            (account1, amount) -> account1.getBalance() >= amount;
-
-    System.out.println("\n--- Lambda Expression ---");
-    System.out.println("Withdraw 12000: " + rule2.allow(account, 12000));
-
-    System.out.println("\n--- Interest Calculation ---");
-    System.out.println("Yearly interest: " + account.yearlyInterest());
-
-    System.out.println("\n--- Annotation Validation ---");
-    Account invalidAccount = new Account("Test User", -500);
-
-    String[] errors = AnnotationValidator.validate(invalidAccount);
-
-    if (errors.length == 0) {
-        System.out.println("No validation errors.");
-    } else {
-        for (String error : errors) {
-            System.out.println(error);
+        for (int i = 0; i < numberOfThreads; i++) {
+            try {
+                threads[i].join();
+            } catch (InterruptedException e) {
+                System.out.println("Thread interrupted");
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
+
+        long expectedBalance = numberOfThreads * times * amount;
+
+        System.out.println("\n--- Final Result---");
+        System.out.println("Expected balance: " + expectedBalance);
+        System.out.println("Actual balance: " + account.getBalance());
     }
 
-    // 5. Input validation
-    System.out.println("\n--- Input Validation Tests ---");
-
-    System.out.println("Mobile: "
-            + Validator.isValidMobile("9876543210")
-            + " / "
-            + Validator.isValidMobile("12345"));
-
-    System.out.println("Email: "
-            + Validator.isValidEmail("aditi@gmail.com")
-            + " / "
-            + Validator.isValidEmail("aditi@gmail"));
-
-    System.out.println("PAN: "
-            + Validator.isValidPan("ABCPD1234E")
-            + " / "
-            + Validator.isValidPan("ABC123"));
-
-    System.out.println("IFSC: "
-            + Validator.isValidIfsc("SBIN0123456")
-            + " / "
-            + Validator.isValidIfsc("ABC123"));
-
-    // 6. Menu
-    int choice = 0;
-
-    while (choice != 5) {
-        System.out.println("\nMENU");
-        System.out.println("1. Open Account");
-        System.out.println("2. Deposit");
-        System.out.println("3. Withdraw");
-        System.out.println("4. Transfer");
-        System.out.println("5. Exit");
-
-        System.out.print("Enter your choice: ");
-        choice = input.nextInt();
-
-        switch (choice) {
-            case 1 -> System.out.println(
-                    "OPEN_ACCOUNT - To be implemented in a later lab.");
-            case 2 -> System.out.println(
-                    "DEPOSIT - To be implemented in a later lab.");
-            case 3 -> System.out.println(
-                    "WITHDRAW - To be implemented in a later lab.");
-            case 4 -> System.out.println(
-                    "TRANSFER - To be implemented in a later lab.");
-            case 5 -> System.out.println(
-                    "Thank you for using " + bank.name() + "!");
-            default -> System.out.println(
-                    "Invalid choice! Please try again.");
-        }
-    }
-
-    input.close();
-}
 }
