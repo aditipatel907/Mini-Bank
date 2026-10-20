@@ -1,5 +1,10 @@
 import Model.annotation.Id;
 import Model.annotation.Positive;
+import java.io.IOException;
+import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 record BankInfo(String name, String branch) {}
 
@@ -163,7 +168,9 @@ class Customer {
     }
 }
 
-class Account implements Transactable, InterestBearing {
+class Account implements Transactable, InterestBearing, Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Id
     private final String accNum;
 
@@ -260,73 +267,44 @@ class Account implements Transactable, InterestBearing {
 public class MiniBank {
 
     public static void main(String[] args) {
-        Account a = new Account("Aditi", 1000);
-        Account b = new Account("Test User", 1000);
-
-        // 1. Thread pool
-        System.out.println("--- Thread Pool ---");
-
-        TransactionProcessor processor = new TransactionProcessor();
-        processor.submit(new TransactionTask(a, "deposit", 100));
-        processor.submit(new TransactionTask(a, "withdraw", 50));
-        processor.stop();
-
-        System.out.println("Balance: " + a.getBalance());
-
-        // 2. Producer and consumer
-        System.out.println("\n--- Producer Consumer ---");
-
-        TransactionBuffer buffer = new TransactionBuffer();
-
-        Thread producer = new Thread(() -> {
-            try {
-                buffer.put(new TransactionTask(a, "deposit", 10));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        Thread consumer = new Thread(() -> {
-            try {
-                Runnable task = buffer.take();
-                task.run();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        producer.start();
-        consumer.start();
-
         try {
-            producer.join();
-            consumer.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
+            Path dataFile = Paths.get("accounts.dat");
+            Path logsFolder = Paths.get("logs");
+            Path logFile = logsFolder.resolve("transactions.txt");
+            Path reportFile = Paths.get("report.txt");
+
+            Files.createDirectories(logsFolder);
+
+            Account[] accounts = {
+                new Account("Aditi", 5000),
+                new Account("Rahul", 3000)
+            };
+
+            StatePersister.save(accounts, dataFile);
+            System.out.println("Accounts saved.");
+
+            Account[] loadedAccounts = StatePersister.load(dataFile);
+            System.out.println("\nLoaded Accounts:");
+
+            for (Account account : loadedAccounts) {
+                System.out.println(account.getOwnerName()
+                        + " - Balance: " + account.getBalance());
+            }
+
+            TransactionLog.append(logFile, "DEPOSIT 500");
+            TransactionLog.append(logFile, "WITHDRAW 200");
+            TransactionLog.append(logFile, "DEPOSIT 1000");
+            TransactionLog.append(logFile, "WITHDRAW 100");
+
+            System.out.println("\nTransactions logged.");
+
+            ReportGenerator.generate(logsFolder, reportFile);
+
+            System.out.println("\n--- End of Day Report ---");
+            System.out.println(Files.readString(reportFile));
+
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error: " + e.getMessage());
         }
-
-        System.out.println("Balance: " + a.getBalance());
-
-        // 3. Deadlock prevention
-        System.out.println("\n--- Safe Transfers ---");
-
-        Thread t1 = new Thread(() -> TransferDemo.transfer(a, b, 100));
-        Thread t2 = new Thread(() -> TransferDemo.transfer(b, a, 50));
-
-        t1.start();
-        t2.start();
-
-        try {
-            t1.join();
-            t2.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return;
-        }
-
-        System.out.println("Account A: " + a.getBalance());
-        System.out.println("Account B: " + b.getBalance());
     }
-
 }
