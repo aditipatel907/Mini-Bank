@@ -2,13 +2,25 @@
 import java.util.concurrent.*;
 
 class TransactionProcessor {
-    ExecutorService pool = Executors.newFixedThreadPool(4);
+    private ExecutorService pool =
+            Executors.newFixedThreadPool(4);
 
-    void submit(Runnable task) {
+    private ConcurrentHashMap<String, Account> accounts =
+            new ConcurrentHashMap<>();
+
+    public void addAccount(Account account) {
+        accounts.put(account.getAccountNumber(), account);
+    }
+
+    public Account getAccount(String accountNumber) {
+        return accounts.get(accountNumber);
+    }
+
+    public void submit(Runnable task) {
         pool.execute(task);
     }
 
-    void stop() {
+    public void stop() {
         pool.shutdown();
 
         try {

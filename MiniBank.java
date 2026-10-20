@@ -1,10 +1,6 @@
 import Model.annotation.Id;
 import Model.annotation.Positive;
-import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 record BankInfo(String name, String branch) {}
 
@@ -171,6 +167,10 @@ class Customer {
 class Account implements Transactable, InterestBearing, Serializable {
     private static final long serialVersionUID = 1L;
 
+    public int compareTo(Account other) {
+        return this.accNum.compareTo(other.accNum);
+    }
+
     @Id
     private final String accNum;
 
@@ -265,46 +265,37 @@ class Account implements Transactable, InterestBearing, Serializable {
 }
 
 public class MiniBank {
-
+    
     public static void main(String[] args) {
-        try {
-            Path dataFile = Paths.get("accounts.dat");
-            Path logsFolder = Paths.get("logs");
-            Path logFile = logsFolder.resolve("transactions.txt");
-            Path reportFile = Paths.get("report.txt");
+        AccountStore store = new AccountStore();
 
-            Files.createDirectories(logsFolder);
+        Account a1 = new Account("Aditi", 5000);
+        Account a2 = new Account("Rahul", 2000);
+        Account a3 = new Account("Priya", 8000);
 
-            Account[] accounts = {
-                new Account("Aditi", 5000),
-                new Account("Rahul", 3000)
-            };
+        store.add(a1);
+        store.add(a2);
+        store.add(a3);
 
-            StatePersister.save(accounts, dataFile);
-            System.out.println("Accounts saved.");
+        store.addTransaction("Aditi deposited 500");
+        store.addTransaction("Rahul withdrew 200");
 
-            Account[] loadedAccounts = StatePersister.load(dataFile);
-            System.out.println("\nLoaded Accounts:");
+        System.out.println("--- Accounts Sorted by Balance ---");
 
-            for (Account account : loadedAccounts) {
-                System.out.println(account.getOwnerName()
-                        + " - Balance: " + account.getBalance());
-            }
-
-            TransactionLog.append(logFile, "DEPOSIT 500");
-            TransactionLog.append(logFile, "WITHDRAW 200");
-            TransactionLog.append(logFile, "DEPOSIT 1000");
-            TransactionLog.append(logFile, "WITHDRAW 100");
-
-            System.out.println("\nTransactions logged.");
-
-            ReportGenerator.generate(logsFolder, reportFile);
-
-            System.out.println("\n--- End of Day Report ---");
-            System.out.println(Files.readString(reportFile));
-
-        } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error: " + e.getMessage());
+        for (Account account : store.sortedByBalance()) {
+            System.out.println(account.getAccountNumber() + " | "
+                    + account.getOwnerName() + " | Rs. "
+                    + account.getBalance());
         }
+
+        System.out.println("\n--- Transaction History ---");
+
+        for (String transaction : store.getHistory()) {
+            System.out.println(transaction);
+        }
+
+        System.out.println("\n--- Comparable Test ---");
+        System.out.println("First account: " + a1.compareTo(a2));
     }
+
 }
