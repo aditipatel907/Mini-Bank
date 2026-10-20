@@ -287,7 +287,7 @@ public class MiniBank {
 
         long expectedBalance = numberOfThreads * times * amount;
 
-        System.out.println("\n--- Final Result---");
+        System.out.println("\n----Final Result----");
         System.out.println("Expected balance: " + expectedBalance);
         System.out.println("Actual balance: " + account.getBalance());
     }
