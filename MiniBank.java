@@ -1,6 +1,8 @@
+import java.io.Serializable;
+
 import Model.annotation.Id;
 import Model.annotation.Positive;
-import java.io.Serializable;
+import p14.part1.BankService;
 
 record BankInfo(String name, String branch) {}
 
@@ -265,37 +267,33 @@ class Account implements Transactable, InterestBearing, Serializable {
 }
 
 public class MiniBank {
-    
+
     public static void main(String[] args) {
-        AccountStore store = new AccountStore();
+        BankService service = new BankService();
 
-        Account a1 = new Account("Aditi", 5000);
-        Account a2 = new Account("Rahul", 2000);
-        Account a3 = new Account("Priya", 8000);
+        service.addAccount("Aditi", 1000);
+        System.out.println("Account count: "
+                + service.getAccountCount());
 
-        store.add(a1);
-        store.add(a2);
-        store.add(a3);
+        service.addAccount("Riya", 2000);
+        System.out.println("Account count: "
+                + service.getAccountCount());
 
-        store.addTransaction("Aditi deposited 500");
-        store.addTransaction("Rahul withdrew 200");
+        for (int i = 0; i < service.getAccountCount(); i++) {
+            p14.part1.Account a = service.getAccount(i);
 
-        System.out.println("--- Accounts Sorted by Balance ---");
-
-        for (Account account : store.sortedByBalance()) {
-            System.out.println(account.getAccountNumber() + " | "
-                    + account.getOwnerName() + " | Rs. "
-                    + account.getBalance());
+            System.out.println(a.getName()
+                    + " - Balance: " + a.getBalance());
         }
 
-        System.out.println("\n--- Transaction History ---");
-
-        for (String transaction : store.getHistory()) {
-            System.out.println(transaction);
+        try {
+            service.addAccount("Rahul", -500);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
         }
 
-        System.out.println("\n--- Comparable Test ---");
-        System.out.println("First account: " + a1.compareTo(a2));
+        System.out.println("Final account count: "
+                + service.getAccountCount());
     }
 
 }
